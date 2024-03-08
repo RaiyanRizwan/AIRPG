@@ -1,2 +1,2 @@
-./scratch.py
-./__pycache__
+scratch.py
+__pycache__/
