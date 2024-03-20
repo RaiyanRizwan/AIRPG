@@ -1,0 +1,5 @@
+An AI RPG developed by Raiyan Rizwan and Kaif Jeelani. 
+
+*Live in a world where the characters and your interactions with them are uniquely yours.*
+
+*We’re working on an RPG with a stable narrative arc, where every NPC acts independently and freely in the world. They’ll have their own set of memories which they reflect on when making decisions and add to with every interaction, as well as unique goals and self interests. You’ll be able to speak to the NPCs and say whatever you want, with the knowledge that what you say will be remembered and affect the people and world around you. Your actions will make every play through unique and potentially lead to infinite endings (but we’ll make sure the game ends one way or the other - after all, you’ll have a goal in the game too!). Each play through will also feature AI-generated lore, circumstances, and mini-stories for side quests.*

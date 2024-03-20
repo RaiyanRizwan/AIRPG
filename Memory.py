@@ -21,19 +21,34 @@ class Memory:
         self.GPT = gpt_endpoint
         
         # structures
-        self.record_buffer = [] 
+        self.text_record_buffer = [] 
+        self.timestamp_record_buffer = []
         self.memories_text = []
         self.memories_embeddings = []
         self.memories_timestamps = []
     
-    def record(self, memory_text: str) -> None:
+    def record(self, memory_text: str, timestamp) -> None:
+        """Record a memory to the memory system (may not actually enter the stream until the record buffer is full)."""
         if self.important(memory_text):
-            self.record_buffer.append(memory_text)
-            if len(self.record_buffer) == self.embeddings_batch_size:
-                embeddings = self.GPT.embedding(self.record_buffer, dimensions=self.embedding_dim)
-                # TODO: add to memory stream
+            self.text_record_buffer.append(memory_text)
+            self.timestamp_record_buffer.append(timestamp)
+            if len(self.text_record_buffer) == self.embeddings_batch_size:
+                # process embeddings in a batch
+                embeddings = self.GPT.embedding(self.text_record_buffer, dimensions=self.embedding_dim)
+                # add to memory stream
+                self.memories_text.extend(self.text_record_buffer)
+                self.memories_embeddings.extend(embeddings)
+                self.memories_timestamps.extend(self.timestamp_record_buffer)
+                # empty buffers
+                self.text_record_buffer = []
+                self.timestamp_record_buffer = []
+                
+    def query(self, query_text: str) -> str:
+        """Return the memories most relevant to the given query."""
+        pass
     
     def important(self, memory_text: str) -> bool:
+        """Ask the LLM for an importance score regarding the memory."""
         msg_stream = [{'role':'system', 'content':self.IMPORTANCE_PROMPT}, 
                       {"role": "user", "content": f'Memory: {memory_text} \n Rating: <fill in>'}]
         response = self.GPT.complete(msg_stream, 'gpt-3.5-turbo-0125')
