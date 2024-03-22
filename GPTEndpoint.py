@@ -21,7 +21,7 @@ class GPTEndpoint:
         self.last_call_timestamp = time.time()
         return output
     
-    def embedding(self, texts:List[str], dimensions: int, model:str="text-embedding-3-small"):
+    def embedding(self, texts:List[str], dimensions: int, model:str="text-embedding-3-small") -> np.ndarray:
         if time.time() - self.last_call_timestamp < self.call_cooldown:
             return "Too many calls too fast."
         processed_texts = [text.replace("\n", " ") for text in texts]
