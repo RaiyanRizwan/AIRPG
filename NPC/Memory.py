@@ -1,6 +1,6 @@
 import re
 import faiss
-from utils import scale_to_range, normalize_vectors
+from NPC.utils import scale_to_range, normalize_vectors
 from GPTEndpoint import GPTEndpoint
 from typing import List
 from Log import Log
