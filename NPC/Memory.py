@@ -42,12 +42,12 @@ class Memory:
         self.recency_weight = recency_weight
         self.relevance_weight = relevance_weight
     
-    def record(self, memory_text: str, timestamp) -> None:
+    def record(self, memory_text: str, timestamp, force_commit: bool = False) -> None:
         """Record a memory to the memory system (may not actually enter the stream until the record buffer is full)."""
         if self.important(memory_text):
             self.text_record_buffer.append(memory_text)
             self.timestamp_record_buffer.append(timestamp)
-            if len(self.text_record_buffer) == self.embeddings_batch_size:
+            if force_commit or len(self.text_record_buffer) == self.embeddings_batch_size:
                 # process embeddings in a batch
                 embeddings = self.LLM.embedding(self.text_record_buffer, dimensions=self.embedding_dim)
                 # faiss process

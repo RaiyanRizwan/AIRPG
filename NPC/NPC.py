@@ -3,11 +3,15 @@ from GPTEndpoint import GPTEndpoint
 
 class NPC:
 
-    def __init__(self, name: str, memory: Memory, LLM: GPTEndpoint, initial_description: str) -> None:
+    """A generative NPC. Architectural ideas derived from https://doi.org/10.1145/3586183.3606763."""
+
+    def __init__(self, name: str, memory: Memory, LLM: GPTEndpoint, initial_description: str, time) -> None:
+        self.LLM = LLM
         self.name = name
         self.memory = memory
-        self.LLM = LLM
-        self.character_summary = initial_description
+        self.seed = initial_description # ; separated statements (entered into memory)
+        for mem in self.seed.split(';'): self.memory.record(mem, time, force_commit=True)
+        self.synthesize_summary()
 
     def synthesize_summary(self) -> None:
         """Dynamically generate concise agent summary."""
@@ -15,3 +19,15 @@ class NPC:
         msg_stream = [{'role':'system', 'content':f'How would you describe {self.name}\'s core characteristics given the following statements?'}, 
                       {"role": "user", "content": '\n'.join(['-' + s for s in statements])}]
         self.character_summary = self.LLM.complete(msg_stream)
+
+    def observe(self, observation: str, time) -> None:
+        """Record observation."""
+        self.memory.record(observation, time)
+    
+    def reflect(self, time) -> None:
+        #TODO: implement
+        pass
+
+    def react(self, time) -> None:
+        #TODO: implement
+        pass
