@@ -2,3 +2,4 @@ numpy
 faiss-cpu
 openai
 packaging
+networkx

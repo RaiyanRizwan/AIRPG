@@ -5,6 +5,8 @@ from GPTEndpoint import GPTEndpoint
 from typing import List
 from Log import Log
 
+#TODO: investigate why using batch size > 1 causes odd results
+
 class Memory:
     
     IMPORTANCE_PROMPT = """On a scale of 1 to 10, where 1 is purely mundane (e.g., brushing teeth, making bed) and 10 is \
@@ -26,7 +28,7 @@ class Memory:
         self.importance_threshold = importance_threshold # between [0, 10]
         self.embeddings_batch_size = embeddings_batch_size
         self.embedding_dim = embedding_length
-        self.GPT = gpt_endpoint
+        self.LLM = gpt_endpoint
         self.log = log
         
         # structures
@@ -47,7 +49,7 @@ class Memory:
             self.timestamp_record_buffer.append(timestamp)
             if len(self.text_record_buffer) == self.embeddings_batch_size:
                 # process embeddings in a batch
-                embeddings = self.GPT.embedding(self.text_record_buffer, dimensions=self.embedding_dim)
+                embeddings = self.LLM.embedding(self.text_record_buffer, dimensions=self.embedding_dim)
                 # faiss process
                 self.faiss_index.add(normalize_vectors(embeddings))
                 # add to memory stream
@@ -59,7 +61,7 @@ class Memory:
                 
     def query(self, query_text: str, k: int, current_time) -> List[str]:
         """Return the k memories most pertinent to the given query based on a weighted sum of cosine similarity and recency."""
-        query_embedding = self.GPT.embedding([query_text], dimensions=self.embedding_dim)[0]
+        query_embedding = self.LLM.embedding([query_text], dimensions=self.embedding_dim)[0]
         distances, nearest_neighbor_indices = self.faiss_index.search(normalize_vectors([query_embedding])[0].reshape(1, -1), k)
 
         time_deltas = [current_time - self.memories_timestamps[faiss_idx] for faiss_idx in nearest_neighbor_indices[0]]
@@ -79,7 +81,7 @@ class Memory:
         """Ask the LLM for an importance score regarding the memory."""
         msg_stream = [{'role':'system', 'content':self.IMPORTANCE_PROMPT}, 
                       {"role": "user", "content": f'Memory: {memory_text} \n Rating: <fill in>'}]
-        response = self.GPT.complete(msg_stream, 'gpt-3.5-turbo-0125')
+        response = self.LLM.complete(msg_stream)
         match = re.search(r'\d+', response)
         importance = 10 # default value in case of exceptions
         try:
