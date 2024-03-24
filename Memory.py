@@ -1,5 +1,6 @@
 import re
 import faiss
+from utils import scale_to_range, normalize_vectors
 from GPTEndpoint import GPTEndpoint
 from typing import List
 from Log import Log
@@ -35,7 +36,7 @@ class Memory:
         self.memories_timestamps = []
         
         # faiss (mem query)
-        self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
+        self.faiss_index = faiss.IndexFlatL2(self.embedding_dim) # normalize all incoming vectors = FAISS w/ cosine similarity 
         self.recency_weight = recency_weight
         self.relevance_weight = relevance_weight
     
@@ -48,7 +49,7 @@ class Memory:
                 # process embeddings in a batch
                 embeddings = self.GPT.embedding(self.text_record_buffer, dimensions=self.embedding_dim)
                 # faiss process
-                self.faiss_index.add(embeddings)
+                self.faiss_index.add(normalize_vectors(embeddings))
                 # add to memory stream
                 self.memories_text.extend(self.text_record_buffer)
                 self.memories_timestamps.extend(self.timestamp_record_buffer)
@@ -57,19 +58,22 @@ class Memory:
                 self.timestamp_record_buffer = []
                 
     def query(self, query_text: str, k: int, current_time) -> List[str]:
-        """Return the k memories most relevant to the given query."""
+        """Return the k memories most pertinent to the given query based on a weighted sum of cosine similarity and recency."""
         query_embedding = self.GPT.embedding([query_text], dimensions=self.embedding_dim)[0]
-        distances, nearest_neighbor_indices = self.faiss_index.search(query_embedding.reshape(1, -1), k) # sorted by increasing dist from query
-        
+        distances, nearest_neighbor_indices = self.faiss_index.search(normalize_vectors([query_embedding])[0].reshape(1, -1), k)
+
+        time_deltas = [current_time - self.memories_timestamps[faiss_idx] for faiss_idx in nearest_neighbor_indices[0]]
+        relevances = [1 / (dist + 0.0001) for dist in distances[0]]  # to prevent division by zero
+        scaled_time_deltas = scale_to_range(time_deltas, MAX=1)
+        scaled_relevances = scale_to_range(relevances, MAX=1)
+
         scores = []
-        for idx, faiss_idx in enumerate(nearest_neighbor_indices[0]):
-            time_delta = current_time - self.memories_timestamps[faiss_idx]
-            relevance = 1 / (distances[0][idx] + 0.0001)  # add small value to prevent division by zero
-            score = self.recency_weight * (1 / time_delta) + self.relevance_weight * relevance
-            scores.append((score, faiss_idx))
+        for time_delta, relevance, idx in zip(scaled_time_deltas, scaled_relevances, nearest_neighbor_indices[0]):
+            score = self.recency_weight * time_delta + self.relevance_weight * relevance
+            scores.append((score, idx))
         
-        sorted_scores = sorted(scores, key=lambda x: x[0], reverse=True)
-        return [self.memories_text[idx] for _, idx in sorted_scores[:k]]
+        sorted_scores = sorted(scores, key=lambda x: x[0], reverse=True)[:k]
+        return [self.memories_text[idx] for _, idx in sorted_scores]
 
     def important(self, memory_text: str) -> bool:
         """Ask the LLM for an importance score regarding the memory."""
@@ -87,5 +91,6 @@ class Memory:
         except ValueError as e:
             self.log.log(f'Error {e} while determining importance of memory {memory_text}.')
             print(f"Unexpected error while determining importance: {e}")
+        self.log.log(f'Memory: {memory_text}, Importance: {importance}.')
         return importance >= self.importance_threshold
     
