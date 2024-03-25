@@ -42,9 +42,9 @@ class Memory:
         self.recency_weight = recency_weight
         self.relevance_weight = relevance_weight
     
-    def record(self, memory_text: str, timestamp, force_commit: bool = False) -> None:
+    def record(self, memory_text: str, timestamp, ignore_importance: bool = False, force_commit: bool = False) -> None:
         """Record a memory to the memory system (may not actually enter the stream until the record buffer is full)."""
-        if self.important(memory_text):
+        if ignore_importance or self.important(memory_text):
             self.text_record_buffer.append(memory_text)
             self.timestamp_record_buffer.append(timestamp)
             if force_commit or len(self.text_record_buffer) == self.embeddings_batch_size:
@@ -61,6 +61,9 @@ class Memory:
                 
     def query(self, query_text: str, k: int, current_time) -> List[str]:
         """Return the k memories most pertinent to the given query based on a weighted sum of cosine similarity and recency."""
+        
+        assert k <= self.faiss_index.ntotal, f'Memory size < {k}.'
+
         query_embedding = self.LLM.embedding([query_text], dimensions=self.embedding_dim)[0]
         distances, nearest_neighbor_indices = self.faiss_index.search(normalize_vectors([query_embedding])[0].reshape(1, -1), k)
 
