@@ -6,6 +6,8 @@ class NPC:
 
     """A generative NPC. Architectural ideas inspired from https://doi.org/10.1145/3586183.3606763."""
 
+    PREDICATE = 'Assume the medeival, fantastical world is reality. Never break the fourth wall. Magic is real. Expect the unexpected.'
+
     def __init__(self, name: str, memory: Memory, LLM: GPTEndpoint, initial_description: str, time, reflection_buffer_length: int, log: Log) -> None:
         
         # external
@@ -37,16 +39,18 @@ class NPC:
     def reflect(self, time) -> None:
         """Condense last [self.reflection_buffer_length] memories into a high-level reflection (also entered into the memory stream)."""
         recent_memories = self.memory.memories_text[-self.reflection_buffer_length:]
-        msg_stream = [{'role':'system', 'content':'Given only the information below, what are 3 most salient highlevel questions we can answer about the subjects in the statements? (example format: question; question; question)'},
+        msg_stream = [{'role':'system', 'content': self.PREDICATE},
+                      {'role':'user', 'content':'Given only the information below, what are 3 most salient highlevel questions we can answer about the subjects in the statements? (example format: question \n question)'},
                       {'role':'user', 'content':'\n'.join(recent_memories)}]
-        questions = self.LLM.complete(msg_stream).split(';')
+        questions = self.LLM.complete(msg_stream).split('\n')
+        self.log.log(f'salient questions for {self.name}: {";".join(questions)}')
         for question in questions: 
             relevant_memories = self.memory.query(question, 5, time)
-            prompt = '\n'.join(relevant_memories) + '\n' + 'What 5 high-level insights can you infer from the above statements? (example format: insight; insight; insight; insight; insight)'
-            insights = self.LLM.complete([{'role':'user', 'content':prompt}])
-            for insight in insights.split(';'): 
-                self.memory.record(insight, time, ignore_importance=True)
-                self.log.log(f'{self.name} had the following reflection: {insight}.')
+            prompt = '\n'.join(relevant_memories) + '\n' + 'What one-sentence high-level insight can you infer from the above statements?'
+            insight = self.LLM.complete([{'role':'system', 'content': self.PREDICATE},
+                                          {'role':'user', 'content':prompt}])
+            self.memory.record(insight, time, ignore_importance=True)
+            self.log.log(f'{self.name} had the following reflection: {insight} in response to the question {question}.')
 
     def react(self, time) -> None:
         #TODO: implement
