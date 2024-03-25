@@ -17,14 +17,14 @@ class NPC:
         # setup
         self.seed = initial_description # ; separated statements (entered into memory)
         for mem in self.seed.split(';'): self.memory.record(mem, time, force_commit=True)
-        self.synthesize_summary()
+        self.synthesize_summary(time)
 
         # structures
         self.reflection_buffer_length = reflection_buffer_length
 
-    def synthesize_summary(self) -> None:
+    def synthesize_summary(self, time) -> None:
         """Dynamically generate concise agent summary."""
-        statements = self.memory.query(f'{self.name}\'s core characteristics.') # statements relevant to core characteristics
+        statements = self.memory.query(f'{self.name}\'s core characteristics.', 3, time) # statements relevant to core characteristics
         msg_stream = [{'role':'system', 'content':f'How would you describe {self.name}\'s core characteristics given the following statements?'}, 
                       {"role": "user", "content": '\n'.join(['-' + s for s in statements])}]
         self.character_summary = self.LLM.complete(msg_stream)
