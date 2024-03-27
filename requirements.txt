@@ -3,3 +3,4 @@ faiss-cpu
 openai
 packaging
 networkx
+pygame
