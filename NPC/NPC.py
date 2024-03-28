@@ -73,8 +73,17 @@ class NPC:
         """Generate a reply to the receiver given the current dialogue history.
         dialogue_history: [name: speech, name: speech...]
         status: what the NPC is currently doing in the world"""
-        relevant_memories = self.memory.query(f'Who is {receiver_name}?', 3, time)
-        context = self.LLM.complete(message_stream=[{'role':'user', 'content':f'{self.name} is speaking to {receiver_name}. Briefly summarize the context given what {self.name} remembers about {receiver_name}: \n {"\n".join(relevant_memories)}'}])
-        prompt = self.character_summary + '\n' + str(time) + '\n' + status + '\n' + context + 'Here is the dialogue history:' + '\n' + '\n'.join(dialogue_history) + f'How would {self.name} respond to {receiver_name}?'
+        relevant_memories_receiver = self.memory.query(f'Who is {receiver_name}?', 1, time)
+        relevant_memories_dialogue = self.memory.query(dialogue_history[-1], 3, time)
+        context = self.LLM.complete(message_stream=[{'role':'user', 'content':f'{self.name} is speaking to {receiver_name}. Briefly summarize the context given what {self.name} remembers: \n'},
+                                                    {'role':'user', 'content':"\n".join(relevant_memories_receiver + relevant_memories_dialogue)}])
+        prompt = self.character_summary + '\n' + \
+                str(time) + '\n' + \
+                status + '\n' + \
+                context + \
+                'Here is the dialogue history:' + '\n' + \
+                '\n'.join(dialogue_history) + \
+                f'How would {self.name} respond to {receiver_name}?'
         return self.LLM.complete(message_stream=[{'role':'system', 'content': self.WORLD_PREDICATE + self.STYLE_PREDICATE}, 
+                                                 {'role':'system', 'content':f'ONLY state {self.name}\'s explicit response.'},
                                                  {'role':'user', 'content':prompt}])
