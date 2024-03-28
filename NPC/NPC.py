@@ -81,9 +81,10 @@ class NPC:
                 str(time) + '\n' + \
                 status + '\n' + \
                 context + \
-                'Here is the dialogue history:' + '\n' + \
-                '\n'.join(dialogue_history) + \
-                f'How would {self.name} respond to {receiver_name}?'
+                ' Here is the dialogue history:' + '\n' + \
+                '\n'.join(dialogue_history) + '\n' + \
+                f'{self.name}: <fill in>'
+        self.log.log(f'Dialogue prompt: {prompt}')
         return self.LLM.complete(message_stream=[{'role':'system', 'content': self.WORLD_PREDICATE + self.STYLE_PREDICATE}, 
-                                                 {'role':'system', 'content':f'ONLY state {self.name}\'s explicit response.'},
+                                                 {'role':'system', 'content': f'ONLY RESPOND with dialogue for {self.name}: <fill in>.'},
                                                  {'role':'user', 'content':prompt}])
