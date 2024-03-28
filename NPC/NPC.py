@@ -5,6 +5,8 @@ from typing import List
 
 class NPC:
 
+    # TODO: implement function to summarize and enter dialogue into memory when end of conversation occurs
+
     """A generative NPC. Architectural ideas inspired from https://doi.org/10.1145/3586183.3606763."""
 
     WORLD_PREDICATE = 'Assume the medeival, fantastical world is reality. Never break the fourth wall. Magic is real.'
@@ -67,6 +69,12 @@ class NPC:
             self.memory.record(insight, time)
             self.log.log(f'{self.name} had the following reflection: {insight} in response to the question {question}.')
 
-    def react(self, time) -> None:
-        #TODO: implement
-        pass
+    def dialogue(self, status: str, dialogue_history: List[str], receiver_name: str, time) -> None:
+        """Generate a reply to the receiver given the current dialogue history.
+        dialogue_history: [name: speech, name: speech...]
+        status: what the NPC is currently doing in the world"""
+        relevant_memories = self.memory.query(f'Who is {receiver_name}?', 3, time)
+        context = self.LLM.complete(message_stream=[{'role':'user', 'content':f'{self.name} is speaking to {receiver_name}. Briefly summarize the context given what {self.name} remembers about {receiver_name}: \n {"\n".join(relevant_memories)}'}])
+        prompt = self.character_summary + '\n' + str(time) + '\n' + status + '\n' + context + 'Here is the dialogue history:' + '\n' + '\n'.join(dialogue_history) + f'How would {self.name} respond to {receiver_name}?'
+        return self.LLM.complete(message_stream=[{'role':'system', 'content': self.WORLD_PREDICATE + self.STYLE_PREDICATE}, 
+                                                 {'role':'user', 'content':prompt}])
