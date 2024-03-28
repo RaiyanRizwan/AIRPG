@@ -6,4 +6,4 @@ def normalize_vectors(vectors):
 
 def scale_to_range(numbers, MAX=1):
     min_val, max_val = min(numbers), max(numbers)
-    return [(x - min_val) / (max_val - min_val) * MAX if max_val > min_val else 0 for x in numbers]
+    return [MAX * (x - min_val) / (max_val - min_val) if max_val > min_val else 0 for x in numbers]

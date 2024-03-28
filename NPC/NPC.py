@@ -25,7 +25,7 @@ class NPC:
 
         # setup
         self.seed = initial_description # ; separated statements (entered into memory)
-        for mem in self.seed.split(';'): self.memory.record(mem, time, force_commit=True)
+        for mem in self.seed.split(';'): self.memory.record(mem, time, force_commit=True, memory_importance=10)
         self.synthesize_summary(time)
 
         # structures
@@ -64,7 +64,7 @@ class NPC:
             prompt = '\n'.join(relevant_memories) + '\n' + 'What one-sentence high-level insight can you infer from the above statements?'
             insight = self.LLM.complete([{'role':'system', 'content': self.WORLD_PREDICATE + self.STYLE_PREDICATE},
                                           {'role':'user', 'content':prompt}])
-            self.memory.record(insight, time, ignore_importance=True)
+            self.memory.record(insight, time)
             self.log.log(f'{self.name} had the following reflection: {insight} in response to the question {question}.')
 
     def react(self, time) -> None:
