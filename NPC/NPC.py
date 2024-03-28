@@ -6,7 +6,7 @@ class NPC:
 
     """A generative NPC. Architectural ideas inspired from https://doi.org/10.1145/3586183.3606763."""
 
-    PREDICATE = 'Assume the medeival, fantastical world is reality. Never break the fourth wall. Magic is real. Expect the unexpected.'
+    PREDICATE = 'Assume the medeival, fantastical world is reality. Never break the fourth wall. Magic is real.'
 
     def __init__(self, name: str, memory: Memory, LLM: GPTEndpoint, initial_description: str, time, reflection_buffer_length: int, log: Log) -> None:
         

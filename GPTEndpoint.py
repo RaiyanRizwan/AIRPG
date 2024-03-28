@@ -4,6 +4,8 @@ from typing import List, Dict
 import numpy as np
 
 class GPTEndpoint:
+
+    #TODO: track tokens / cost
     
     def __init__(self, API_KEY: str, chat_model: str = 'gpt-3.5-turbo-0125', embedding_model: str = "text-embedding-3-small", limit_call_frequency: bool = False, call_cooldown: float = 10) -> None:
         self.api_key = API_KEY
