@@ -1,4 +1,5 @@
 scratch.py
 __pycache__/
 .venv
+env/
 *.csv
