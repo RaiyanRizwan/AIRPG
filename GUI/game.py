@@ -6,19 +6,33 @@ from npc import BaseNPC as NPC
 
 
 class AIVN:
+    # Game Loop
     DEBUG = False
     SCREEN_WIDTH = 1024
     SCREEN_HEIGHT = 576
     TEXTBOX_BORDER_RADIUS = 12
     BUTTON_BORDER_RADIUS = 16
-    FRAME_RATE = 1
+
+    # Manage Timing
+    MAX_TIME = 60 * 1 # 60min * 8 hours
+    KILL_TIME = 10
+    TALK_TIME = 2
+    TRAVEL_TIME = 15
+
+    # Colors
     WHITE = (255, 255, 255)
     BLACK = (0, 0, 0)
     BLOOD = (180, 12, 24)
+
+    # Sound
+    MUTED = False
+    VOLUME = .6
     TRACK_LIST = {
         "title": "assets/audio/title_screen.mp3",
         "main": "assets/audio/test.mp3",
-        "win": "assets/audio/victory.mp3"
+        "win": "assets/audio/victory.mp3",
+        "lose": "assets/audio/defeat.mp3",
+        "knife_slash": "assets/audio/knife_slash.wav"
     }
 
     '''
@@ -253,16 +267,30 @@ class AIVN:
                     # highlight yellow (or other inputted color)
                     img.set_at((x, y), highlight_color)
         return img
+    
+    def display_time(self) -> None:
+        time_text = self.assets["font"].render(self.cur_time_string(), True, AIVN.WHITE)
+        self.screen.blit(time_text, self.assets["time_text"].get_pos(-time_text.get_width() // 2, 0))
+        if not self.triggered_lose and self.cur_time >= AIVN.MAX_TIME:
+            self.triggered_lose = True
+            self.animation_queue.add_animation("wait", 4, speed=1) # Lose
 
-    def kill_NPC(self, npc: NPC):
+    def kill_NPC(self, npc: NPC) -> None:
+        self.cur_time += AIVN.KILL_TIME
         npc.is_alive = False
         self.animation_queue.add_animation("killflash", -1)
+        self.handle_music(sfx_to_play="knife_slash")
 
-    def check_secret_word(self, response: str):
+    def check_secret_word(self, response: str) -> None:
         # TODO: Implement Cosine Similarity detection. For now we use a simple check
         if self.secret_word in response:
-            self.animation_queue.add_animation("wait", 2, speed=1)
+            self.animation_queue.add_animation("wait", 3, speed=1) # Win
 
+    def cur_time_string(self) -> None:
+        hour = self.cur_time // 60
+        minute = self.cur_time % 60
+        return f"{hour}:{minute:02d} PM"
+    
 
 
 
@@ -276,13 +304,16 @@ class AIVN:
     def __init__(self, area_to_NPC: Dict[str, NPC], secret_word: str) -> None:
         self.cur_game_state = 0 # 0 for Title Screen, 1 for Map View, 2 for NPC View
         self.secret_word = secret_word
-
+        # Set time
+        self.cur_time = 0
+        self.triggered_lose = False
         
         pg.init()
         self.screen = pg.display.set_mode((AIVN.SCREEN_WIDTH, AIVN.SCREEN_HEIGHT))
         self.animation_queue = self.AnimationManager(self.screen)
         
         pg.mixer.init()
+        pg.mixer.music.set_volume(AIVN.VOLUME)
         self.cur_playing = "-1"
 
         
@@ -300,6 +331,7 @@ class AIVN:
             "title_screen": self.ImageBackground('./assets/title_screen.png'),
             "start_button": self.Rect(AIVN.SCREEN_WIDTH // 2 - 125, 350, 250, 50),
             "title_text": self.Rect(AIVN.SCREEN_WIDTH // 2, 200, 200, 200),
+            "time_text": self.Rect(AIVN.SCREEN_WIDTH - 60, 30, 50, 40),
 
             "map": self.ImageBackground('./assets/map.png'),
             "castle": self.ImageBackground('./assets/castle.png'),
@@ -359,8 +391,6 @@ class AIVN:
 
 
 
-
-
     def setup_map_loop(self, prev_state:int) -> None:
         for loc in self.npc_locs.values():
             loc.has_player = loc.name == self.cur_NPC_loc
@@ -393,6 +423,8 @@ class AIVN:
                 self.screen.blit(self.highlight(loc.get_image(), highlight_color=AIVN.BLOOD), loc.get_pos())
             else:
                 self.screen.blit(loc.get_image(), loc.get_pos())
+        
+        self.display_time()
 
         return True
 
@@ -400,6 +432,7 @@ class AIVN:
 
 
     def setup_NPC_loop(self, selected_loc: NPCLocation, prev_state: int) -> None:
+        self.cur_time += AIVN.TRAVEL_TIME
         self.cur_NPC_loc = selected_loc.name
         self.cur_NPC = selected_loc.NPC
         self.cur_player_text = ''
@@ -430,6 +463,7 @@ class AIVN:
                     # NPC Responds based on NPC type. Check if the NPC revealed the secret
                     self.cur_NPC_text = self.cur_NPC.respond_to(self.cur_player_text)
                     self.check_secret_word(self.cur_NPC_text)
+                    self.cur_time += AIVN.TALK_TIME
                     self.cur_player_text = ''  # Clear input text
                 elif event.key == pg.K_BACKSPACE:
                     self.cur_player_text  = self.cur_player_text[:-1]
@@ -449,6 +483,7 @@ class AIVN:
             pg.draw.rect(self.screen, AIVN.BLACK, self.assets["player_input"], 2, border_radius=AIVN.TEXTBOX_BORDER_RADIUS)
 
             self.screen.blit(self.assets["go_back_icon"].get_image(), self.assets["go_back_icon"].get_pos())
+            self.display_time()
             return True
 
 
@@ -479,6 +514,8 @@ class AIVN:
                             (self.assets["kill_button"].height - kill_text.get_height()) // 2
                         )
         )
+
+        self.display_time()
 
         return True
 
@@ -516,11 +553,46 @@ class AIVN:
         secret_phrase_text = self.assets["font"].render(f'The secret phrase was: {self.secret_word}', True, AIVN.BLACK)
         self.screen.blit(secret_phrase_text, self.assets["secret_phrase_text"].get_pos(-secret_phrase_text.get_width() // 2, 0))
 
+        self.display_time()
+
         return True
 
 
+
+    def setup_lose_loop(self) -> None:
+        print('re')
+        self.animation_queue.add_animation("fadeout", 4, speed=.5)
+
+
     def lose_loop(self) -> None:
-        pass
+        # button = self.assets["restart_button"]
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                return False
+            
+            if event.type == pg.MOUSEBUTTONDOWN:
+                # if button.collidepoint(event.pos):
+                #     self.setup_map_loop(0)
+
+                if AIVN.DEBUG:
+                    print("Clicked within region at", event.pos)
+
+        # Draw the background image
+        self.screen.blit(self.assets["title_screen"].get_image(), self.assets["title_screen"].get_pos())
+        self.alpha_fill((100,100,100,255), self.assets["title_screen"])
+
+        # Render the title text
+        title_text = self.assets["title_font"].render('You Ran Out of Time!', True, AIVN.BLOOD)
+        self.screen.blit(title_text, self.assets["title_text"].get_pos(-title_text.get_width() // 2, 0)) 
+
+        # Render the Secret Word Text
+        secret_phrase_text = self.assets["font"].render(f'The secret phrase was: {self.secret_word}', True, AIVN.WHITE)
+        self.screen.blit(secret_phrase_text, self.assets["secret_phrase_text"].get_pos(-secret_phrase_text.get_width() // 2, 0))
+
+        self.display_time()
+
+        return True
 
 
     
@@ -537,11 +609,20 @@ class AIVN:
                 else:
                     self.animation_queue.add_animation("fadein", mapping[task[1]])
             elif task[0] == "wait":
-                self.setup_win_loop()
+                self.setup_win_loop() if task[1] == 3 else self.setup_lose_loop()
     
 
-    def handle_music(self) -> None:
+
+    def handle_music(self, sfx_to_play='', vol=.5) -> None:
         # TODO: Clean this up
+        if AIVN.MUTED:
+           return
+
+        if sfx_to_play != '':
+            sfx = pg.mixer.Sound(AIVN.TRACK_LIST[sfx_to_play])
+            sfx.set_volume(vol)
+            sfx.play()
+
         if self.cur_game_state == 0 and self.cur_playing != "title":
             self.cur_playing = "title"
             pg.mixer.music.load(AIVN.TRACK_LIST[self.cur_playing])
@@ -552,6 +633,10 @@ class AIVN:
             pg.mixer.music.play(-1)
         elif self.cur_game_state == 3 and self.cur_playing != "win":
             self.cur_playing = "win"
+            pg.mixer.music.load(AIVN.TRACK_LIST[self.cur_playing])
+            pg.mixer.music.play(-1)
+        elif self.cur_game_state == 4 and self.cur_playing != "lose":
+            self.cur_playing = "lose"
             pg.mixer.music.load(AIVN.TRACK_LIST[self.cur_playing])
             pg.mixer.music.play(-1)
 
@@ -571,6 +656,7 @@ class AIVN:
             running = action_map[self.cur_game_state]()
             self.handle_animations()
             self.handle_music()
+
             # Show display after drawing everything
             pg.display.flip()
 

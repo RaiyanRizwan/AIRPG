@@ -4,6 +4,9 @@ class BaseNPC():
     '''
         Abstract NPC class that all NPCs MUST extend for the GUI to work
         This is where the NPC system and the GUI connect.
+
+        TODO: Add a method to the NPC class called reflect
+            - Call this in the GUI at regular intervals
     '''
 
     def __init__(self, name: str, sprite: str) -> None:
@@ -11,9 +14,15 @@ class BaseNPC():
         self.sprite = sprite # File path of image
         self.is_alive = True
     
-    def respond_to(self, prompt: str) -> str:
+    def respond_to(self, prompt: str, timestamp: str) -> str:
         # Given a prompt by the player, what is this NPCs response
         return ''
+    
+    def start_conversation(self, timestamp: str) -> None:
+        return 
+    
+    def end_conversation(self, timestamp: str) -> None:
+        return 
     
 
     
@@ -102,5 +111,5 @@ class DummyNPC(BaseNPC):
         "A true warrior knows when to fight and when to show mercy.",
     ]
 
-    def respond_to(self, prompt: str) -> str:
+    def respond_to(self, prompt: str, timestamp: str) -> str:
         return choice(DummyNPC.potential_responses)
