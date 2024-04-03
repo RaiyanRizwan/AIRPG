@@ -76,3 +76,9 @@ class NPC:
         self.log.log(f'Dialogue prompt: {self.prompt.dialogue(status, context, dialogue_history, time)}')
         return self.LLM.complete(message_stream=[{'role':'system', 'content': self.prompt.WORLD_PREDICATE + self.prompt.DIALOGUE_STYLE_PREDICATE + self.prompt.DIALOGUE_STYLE_PREDICATE_EXAMPLE}, 
                                                  {'role':'user', 'content':self.prompt.dialogue(status, context, dialogue_history, time)}])
+
+    def synthesize_dialogue(self, status: str, dialogue_history: List[str], time) -> None:
+        """Summarize conversation and enter into memory."""
+        summary = self.LLM.complete(message_stream=[{'role': 'system', 'content': self.prompt.WORLD_PREDICATE + self.prompt.GENERAL_STYLE_PREDICATE},
+                                                    {'role': 'user', 'content': self.prompt.dialogue_summary(status, dialogue_history, time)}])
+        for statement in summary.split('\n'): self.observe(statement, time)

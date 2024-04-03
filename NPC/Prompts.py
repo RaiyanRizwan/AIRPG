@@ -36,7 +36,7 @@ class Prompts:
     
     def salient_questions(self, recent_memories):
         """generate salient questions prompt (for reflections)"""
-        return f'Given only the information below, what are 3 most salient highlevel questions we can answer about the subjects in the statements? \n' +  "\n".join(recent_memories)
+        return f'Given only the information below, what are 3 most salient highlevel questions we can answer about the subjects in the statements? Separate with newlines. \n' +  "\n".join(recent_memories)
 
     def insight(self, relevant_memories):
         """generate insight from memories (out: reflection)"""
@@ -53,6 +53,16 @@ class Prompts:
                 status + '\n' + \
                 f'You ONLY know whatever is in the following context. Summary of relevant context from {self.NPC.name}\'s memory: ' + \
                 context + '\n' \
-                ' Here is the dialogue history:' + '\n' + \
+                'Here is the dialogue history:' + '\n' + \
                 '\n'.join(dialogue_history) + '\n' + \
                 f'You are {self.NPC.name}. How would you respond?'
+    
+    def dialogue_summary(self, status, dialogue_history, time):
+        """dialogue summary prompt"""
+        return self.NPC.character_summary + '\n' + \
+                str(time) + '\n' + \
+                status + '\n' + \
+                'Dialogue history:' + '\n' + \
+                '\n'.join(dialogue_history) + '\n' + \
+                f'Succinctly summarize the conversation into two or three salient, new-line separated statements based primarily on the given dialogue history..'
+    
