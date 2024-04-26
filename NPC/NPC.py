@@ -1,3 +1,4 @@
+import random
 from NPC.Memory import Memory
 from NPC.Prompts import Prompts
 from GPTEndpoint import GPTEndpoint
@@ -10,11 +11,15 @@ class NPC:
 
     """A generative NPC. Architectural ideas inspired from https://doi.org/10.1145/3586183.3606763."""
 
-    def __init__(self, name: str, pronoun: str, age: int, traits: List[str], memory: Memory, LLM: GPTEndpoint, initial_description: str, time, reflection_buffer_length: int, log: Log) -> None:
-        
+    def __init__(
+            self, name: str, pronoun: str, age: int, 
+            traits: List[str], initial_description: str, statuses: List[str],
+            time, reflection_buffer_length: int, memory: Memory, LLM: GPTEndpoint, log: Log
+    ) -> None:
         # characteristics
         self.name = name
         self.traits = traits
+        self.statuses = statuses
         self.pronoun = pronoun
         self.age = age
 
@@ -66,12 +71,12 @@ class NPC:
             self.memory.record(insight, time)
             self.log.log(f'{self.name} had the following reflection: {insight} in response to the question {question}.')
 
-    def dialogue(self, status: str, dialogue_history: List[str], receiver_name: str, time) -> None:
+    def dialogue(self, status: str, dialogue_history: List[str], receiver_name: str, time) -> str:
         """Generate a reply to the receiver given the current dialogue history.
         dialogue_history: [name: speech, name: speech...]
         status: what the NPC is currently doing in the world"""
         relevant_memories_receiver = self.memory.query(f'Who is {receiver_name}?', 1, time)
-        relevant_memories_dialogue = self.memory.query(dialogue_history[-1], 3, time)
+        relevant_memories_dialogue = self.memory.query(dialogue_history[-1], 3, time) if len(dialogue_history) > 0 else []
         context = self.LLM.complete(message_stream=[{'role':'user', 'content':self.prompt.dialogue_context(receiver_name, relevant_memories_receiver, relevant_memories_dialogue)}])
         self.log.log(f'Dialogue prompt: {self.prompt.dialogue(status, context, dialogue_history, time)}')
         return self.LLM.complete(message_stream=[{'role':'system', 'content': self.prompt.WORLD_PREDICATE + self.prompt.DIALOGUE_STYLE_PREDICATE + self.prompt.DIALOGUE_STYLE_PREDICATE_EXAMPLE}, 
@@ -82,3 +87,17 @@ class NPC:
         summary = self.LLM.complete(message_stream=[{'role': 'system', 'content': self.prompt.WORLD_PREDICATE + self.prompt.GENERAL_STYLE_PREDICATE},
                                                     {'role': 'user', 'content': self.prompt.dialogue_summary(status, dialogue_history, time)}])
         for statement in summary.split('\n'): self.observe(statement, time)
+
+    def random_state(self):
+        '''
+            Return a random state that this NPC could be in
+        '''
+        return random.choice(self.statuses)
+    
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, NPC):
+            return self.name == value.name
+        return False
+    
+    def __hash__(self) -> int:
+        return hash(self.name)
